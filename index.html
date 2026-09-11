@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aviator Casino - Spribe Edition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { background-color: #000000; color: #ffffff; font-family: 'Roboto', sans-serif; user-select: none; }
+    .aviator-logo { font-family: 'Pacifico', cursive; }
+    .history-pill { padding: 2px 8px; border-radius: 12px; font-weight: 700; font-size: 11px; margin-right: 4px; flex-shrink: 0; cursor: pointer; }
+    .pill-blue { background: #002b49; color: #3b82f6; border: 1px solid #1d4ed8; }
+    .pill-purple { background: #3b0764; color: #c084fc; border: 1px solid #7e22ce; }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #2a2e3d; border-radius: 4px; }
+    .btn-green-glow { background: linear-gradient(180deg, #28a745 0%, #1e7e34 100%); box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4); }
+    .btn-amber-glow { background: linear-gradient(180deg, #ffc107 0%, #d39e00 100%); box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-[#000000]">
+
+  <!-- TOP NAVIGATION NAVBAR -->
+  <header class="bg-[#14151b] px-4 py-2.5 flex justify-between items-center border-b border-slate-800 sticky top-0 z-40">
+    <div class="flex items-center space-x-3">
+      <span class="aviator-logo text-red-600 text-2xl tracking-wide">Aviator</span>
+      <button onclick="openModal('depositModal')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-md">
+        <i class="fa-solid fa-plus text-[10px]"></i> Deposit
+      </button>
+    </div>
+    
+    <div class="flex items-center space-x-3">
+      <div class="bg-[#000000] border border-amber-500/40 px-3 py-1 rounded-full flex items-center gap-1.5 shadow-inner">
+        <span class="text-amber-400 font-extrabold text-xs">Rs.</span>
+        <span class="text-white font-black text-xs sm:text-sm" id="walletBalance">1,000.00</span>
+      </div>
+      <button id="soundToggleBtn" onclick="toggleSound()" class="text-slate-400 hover:text-emerald-400 text-base px-1">
+        <i class="fa-solid fa-volume-high" id="soundIcon"></i>
+      </button>
+      <button onclick="openModal('profileModal')" class="text-slate-400 hover:text-white text-lg px-1">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MULTIPLIER HISTORY STRIP & FULL HISTORY TRIGGER -->
+  <div class="bg-[#14151b]/90 px-3 py-1.5 flex items-center justify-between border-b border-slate-800">
+    <div id="historyBar" class="flex items-center overflow-x-auto custom-scrollbar flex-1 pr-2"></div>
+    <button onclick="openModal('fullHistoryModal')" class="text-slate-400 hover:text-white text-xs bg-slate-800 px-2 py-1 rounded-full border border-slate-700 flex items-center gap-1">
+      <i class="fa-solid fa-clock-rotate-left"></i>
+    </button>
+  </div>
+
+  <!-- RESPONSIVE MAIN CONTAINER -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-2 sm:p-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
+    
+    <!-- CANVAS DISPLAY BOX -->
+    <div class="lg:col-span-2 relative bg-[#000000] h-[260px] sm:h-[380px] rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex items-center justify-center">
+      <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
+        <div id="gameStatus" class="text-5xl sm:text-7xl font-black text-white tracking-tight drop-shadow-lg">1.00x</div>
+        <p id="subStatus" class="text-red-500 text-xs sm:text-sm font-bold tracking-widest uppercase mt-2 bg-black/60 px-3 py-0.5 rounded-full border border-red-500/20"></p>
+      </div>
+      <canvas id="aviatorCanvas" class="w-full h-full block"></canvas>
+    </div>
+
+    <!-- DUAL BET PANELS -->
+    <div class="flex flex-col gap-2 justify-between">
+      
+      <!-- BET PANEL 1 -->
+      <div class="bg-[#1a1c23] p-3 rounded-2xl border border-slate-800 shadow-md">
+        <div class="flex justify-center gap-6 text-xs text-slate-400 mb-2 font-bold">
+          <button id="modeBet1" onclick="switchBetTab(1, 'manual')" class="text-white border-b-2 border-red-500 pb-0.5">Bet</button>
+          <button id="modeAuto1" onclick="switchBetTab(1, 'auto')" class="hover:text-white pb-0.5">Auto</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="flex flex-col w-1/2 gap-1.5">
+            <div class="flex items-center justify-between bg-[#000000] border border-slate-700 rounded-lg p-1.5">
+              <button onclick="adjustBet(1, -50)" class="text-slate-400 font-extrabold px-2">-</button>
+              <input type="number" id="betAmount1" value="100" class="w-20 text-center bg-transparent text-white font-black text-sm focus:outline-none">
+              <button onclick="adjustBet(1, 50)" class="text-slate-400 font-extrabold px-2">+</button>
+            </div>
+            <div class="grid grid-cols-4 gap-1 text-[10px]">
+              <button onclick="setBet(1, 100)" class="bg-[#242731] hover:bg-slate-700 text-slate-300 py-1 rounded font-bold">100</button>
+              <button onclick="setBet(1, 200)" class="bg-[#242731] hover:bg-slate-700 text-slate-300 py-1 rounded font-bold">200</button>
+              <button onclick="setBet(1, 500)" class="bg-[#242731] hover:bg-slate-700 text-slate-300 py-1 rounded font-bold">500</button>
+              <button onclick="setBet(1, 1000)" class="bg-[#242731] hover:bg-slate-700 text-slate-300 py-1 rounded font-bold">1k</button>
+            </div>
+          </div>
+
+          <button id="betBtn1" onclick="handleBetClick(1)" class="w-1/2 h-[72px] btn-green-glow text-white font-black rounded-2xl text-lg uppercase transition flex flex-col items-center justify-center shadow-lg">
+            <span>BET</span>
+          </button>
+        </div>
+
+        <div id="autoControls1" class="hidden mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <span>Auto Cashout:</span>
+          <input type="number" id="autoMult1" value="2.00" step="0.1" class="w-16 bg-black border border-slate-700 rounded px-1.5 py-0.5 text-center text-white font-bold">
+        </div>
+      </div>
+
+      <!-- BET PANEL 2 -->
+      <div class="bg-[#1a1c23] p-3 rounded-2xl border border-slate-800 shadow-md">
+        <div class="flex justify-center gap-6 text-xs text-slate-400 mb-2 font-bold">
+          <button id="modeBet2" onclick="switchBetTab(2, 'manual')" class="text-white border-b-2 border-red-500 pb-0.5">Bet</button>
+          <button id="modeAuto2" onclick="switchBetTab(2, 'auto')" class="hover:text-white pb-0.5">Auto</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="flex flex-col w-1/2 gap-1.5">
+            <div class="flex items-center justify-between bg-[#000000] border border-slate-700 rounded-lg p-1.5">
+              <button onclick="adjustBet(2, -50)" class="text-slate-400 font-extrabold px-2">-</button>
+              <input type="number" id="betAmount2" value="100" class="w-20 text-center bg-transparent text-white font-black text-sm focus:outline-none">
+              <button onclick="adjustBet(2, 50)" class="text-slate-400 font-extrabold px-2">+</button>
+            </div>
+            <div class="grid grid-cols-4 gap-1 text-[10px]">
+              <button onclick="setBet(2, 100)" class="bg-[#242731] hover:bg-slate-700 text-slate-300 py-1 rounded font-bold">100</button>
+              <button onclick="setBet(2, 200)" class="bg-[#242731] hover:bg-slate-700 text-slate-300 py-1 rounded font-bold">200</button>
+              <button onclick="setBet(2, 500)" class="bg-[#242731] hover:bg-slate-700 text-slate-300 py-1 rounded font-bold">500</button>
+              <button onclick="setBet(2, 1000)" class="bg-[#242731] hover:bg-slate-700 text-slate-300 py-1 rounded font-bold">1k</button>
+            </div>
+          </div>
+
+          <button id="betBtn2" onclick="handleBetClick(2)" class="w-1/2 h-[72px] btn-green-glow text-white font-black rounded-2xl text-lg uppercase transition flex flex-col items-center justify-center shadow-lg">
+            <span>BET</span>
+          </button>
+        </div>
+
+        <div id="autoControls2" class="hidden mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+          <span>Auto Cashout:</span>
+          <input type="number" id="autoMult2" value="2.00" step="0.1" class="w-16 bg-black border border-slate-700 rounded px-1.5 py-0.5 text-center text-white font-bold">
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- LIVE BETS / MY BETS / TOP TABBED PANEL -->
+  <div class="bg-[#14151b] border-t border-slate-800 p-3 max-w-6xl w-full mx-auto mt-2 rounded-t-2xl">
+    <div class="flex justify-around text-xs font-bold text-slate-400 border-b border-slate-800 pb-2 mb-2">
+      <button id="tabAll" onclick="switchMainTab('all')" class="text-white bg-slate-800 px-4 py-1.5 rounded-full">All Bets</button>
+      <button id="tabMy" onclick="switchMainTab('my')" class="hover:text-white px-4 py-1.5 rounded-full">My Bets</button>
+      <button id="tabTop" onclick="switchMainTab('top')" class="hover:text-white px-4 py-1.5 rounded-full">Top Wins</button>
+    </div>
+
+    <div id="betsTableContainer" class="max-h-36 overflow-y-auto space-y-1 text-xs custom-scrollbar pr-1"></div>
+  </div>
+
+  <!-- MODAL: MANUAL DEPOSIT GATEWAY (PKR) -->
+  <div id="depositModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-[#1a1c23] p-5 rounded-2xl w-full max-w-sm border border-slate-800 relative">
+      <button onclick="closeModal('depositModal')" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      <h3 class="text-lg font-bold text-emerald-400 mb-2 flex items-center gap-2"><i class="fa-solid fa-building-columns"></i> Deposit Funds (PKR)</h3>
+      
+      <div class="space-y-3 mt-4">
+        <!-- REAL PAYMENT ACCOUNTS DISPLAY -->
+        <div class="bg-black/80 p-3 rounded-xl border border-emerald-500/40 text-xs space-y-2">
+          <p class="font-bold text-amber-400">Send Payment To Account:</p>
+          
+          <div class="flex justify-between items-center bg-[#14151b] p-2 rounded border border-slate-800">
+            <div>
+              <span class="text-red-500 font-bold block text-[11px]">JazzCash</span>
+              <span class="text-sm font-mono text-white font-black">0325-3415325</span>
+            </div>
+            <span class="text-slate-300 font-bold text-xs">Ayaz Ahmed</span>
+          </div>
+
+          <div class="flex justify-between items-center bg-[#14151b] p-2 rounded border border-slate-800">
+            <div>
+              <span class="text-emerald-500 font-bold block text-[11px]">EasyPaisa</span>
+              <span class="text-sm font-mono text-white font-black">0337-5319698</span>
+            </div>
+            <span class="text-slate-300 font-bold text-xs">Ayaz Ahmed</span>
+          </div>
+        </div>
+
+        <label class="block text-xs text-slate-400">1. Select Used Method:</label>
+        <select id="depositMethod" class="w-full p-2 rounded-lg bg-black border border-slate-700 text-white text-xs">
+          <option value="JazzCash">JazzCash</option>
+          <option value="Easypaisa">Easypaisa</option>
+        </select>
+
+        <label class="block text-xs text-slate-400">2. Amount Sent (Rs.):</label>
+        <input type="number" id="depositAmt" placeholder="e.g. 1000" class="w-full p-2.5 rounded-lg bg-black border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
+
+        <label class="block text-xs text-slate-400">3. Transaction ID (TXZ ID):</label>
+        <input type="text" id="depositTrx" placeholder="Enter TRX ID from SMS" class="w-full p-2.5 rounded-lg bg-black border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500 font-mono">
+
+        <button onclick="submitManualDeposit()" class="w-full bg-emerald-500 text-black font-black py-3 rounded-xl text-sm shadow-lg shadow-emerald-500/20">SUBMIT PAYMENT PROOF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FULL ROUND HISTORY -->
+  <div id="fullHistoryModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+    <div class="bg-[#1a1c23] p-5 rounded-2xl w-full max-w-md border border-slate-800 relative">
+      <button onclick="closeModal('fullHistoryModal')" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      <h3 class="text-base font-bold text-white mb-3 flex items-center gap-2"><i class="fa-solid fa-history text-red-500"></i> Previous Rounds History</h3>
+      <div id="fullHistoryGrid" class="grid grid-cols-4 gap-2 max-h-60 overflow-y-auto custom-scrollbar p-1"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: PROFILE -->
+  <div id="profileModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-[#1a1c23] p-5 rounded-2xl w-full max-w-xs border border-slate-800 text-center relative">
+      <button onclick="closeModal('profileModal')" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      <div class="w-12 h-12 bg-red-600/20 text-red-500 border border-red-500/40 rounded-full flex items-center justify-center mx-auto mb-2 text-xl">
+        <i class="fa-solid fa-user-astronaut"></i>
+      </div>
+      <h3 class="text-base font-bold text-white">VIP Player Account</h3>
+      <p class="text-xs text-slate-400 mb-4">Currency: PKR (Pakistan)</p>
+      <button onclick="openModal('depositModal')" class="w-full bg-emerald-500 text-black font-bold py-2 rounded-lg text-xs mb-2">Deposit Funds</button>
+      <button onclick="location.reload()" class="w-full bg-red-600/20 text-red-400 font-bold py-2 rounded-lg text-xs border border-red-600/30">Logout</button>
+    </div>
+  </div>
+
+  <script>
+    let betStates = { 1: 'NONE', 2: 'NONE' };
+    let isAutoMode = { 1: false, 2: false };
+    let currentMultiplier = 1.00;
+    let isFlying = false;
+    let currentMainTab = 'all';
+    let roundHistory = [1.32, 2.45, 1.05, 5.20, 1.80, 12.10, 1.15, 3.40];
+    let myBetsHistory = [];
+    let authToken = localStorage.getItem('token') || '';
+
+    // WEBSOCKET INTEGRATION WITH SERVER.JS
+    const ws = new WebSocket('ws://localhost:3000');
+
+    ws.onopen = () => {
+      console.log('Connected to Aviator Server!');
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'WAITING_PHASE') {
+        isFlying = false;
+        elapsed = 0;
+        stopFlySound();
+        if (data.history) { roundHistory = data.history; updateHistoryUI(); }
+        document.getElementById('subStatus').innerText = `WAITING FOR NEXT ROUND (${data.countdown}s)`;
+        document.getElementById('gameStatus').innerText = '1.00x';
+        document.getElementById('gameStatus').style.color = '#ffffff';
+      } 
+      else if (data.type === 'GAME_STARTED') {
+        isFlying = true;
+        elapsed = 0;
+        document.getElementById('subStatus').innerText = '';
+        playSound('start');
+        animateEngine();
+      } 
+      else if (data.type === 'MULTIPLIER_UPDATE') {
+        if (isFlying) {
+          currentMultiplier = parseFloat(data.multiplier);
+          document.getElementById('gameStatus').innerText = currentMultiplier.toFixed(2) + 'x';
+
+          [1, 2].forEach(id => {
+            if (betStates[id] === 'ACTIVE') {
+              let targetMult = parseFloat(document.getElementById(`autoMult${id}`).value) || 2.0;
+              if (isAutoMode[id] && currentMultiplier >= targetMult) {
+                cashout(id);
+              } else {
+                let amt = parseFloat(document.getElementById(`betAmount${id}`).value);
+                document.getElementById(`betBtn${id}`).innerHTML = `<span class="text-[10px]">CASH OUT</span><span class="text-sm font-black">Rs. ${(amt * currentMultiplier).toFixed(0)}</span>`;
+              }
+            }
+          });
+        }
+      } 
+      else if (data.type === 'CRASHED') {
+        isFlying = false;
+        playSound('crash');
+        document.getElementById('gameStatus').innerText = parseFloat(data.finalMultiplier).toFixed(2) + 'x';
+        document.getElementById('gameStatus').style.color = '#ef4444';
+        document.getElementById('subStatus').innerText = 'FLEW AWAY!';
+        
+        if (data.history) { roundHistory = data.history; updateHistoryUI(); }
+
+        [1, 2].forEach(id => {
+          if (betStates[id] === 'ACTIVE') {
+            betStates[id] = 'NONE';
+            resetBetBtnUI(id);
+          }
+        });
+      }
+    };
+
+    // AUDIO SYSTEM
+    const sounds = {
+      takeoff: new Audio('https://assets.mixkit.co/active_storage/sfx/2578/2578-preview.mp3'),
+      flying: new Audio('https://assets.mixkit.co/active_storage/sfx/1004/1004-preview.mp3'),
+      flewAway: new Audio('https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3'),
+      win: new Audio('https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3')
+    };
+
+    sounds.flying.loop = true;
+    sounds.flying.volume = 0.3;
+    sounds.takeoff.volume = 0.5;
+    sounds.flewAway.volume = 0.6;
+    sounds.win.volume = 0.7;
+
+    let soundEnabled = true;
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      try {
+        if (type === 'start') {
+          sounds.takeoff.currentTime = 0;
+          sounds.takeoff.play().catch(() => {});
+          sounds.flying.currentTime = 0;
+          sounds.flying.play().catch(() => {});
+        } else if (type === 'crash') {
+          sounds.flying.pause();
+          sounds.flewAway.currentTime = 0;
+          sounds.flewAway.play().catch(() => {});
+        } else if (type === 'win') {
+          sounds.win.currentTime = 0;
+          sounds.win.play().catch(() => {});
+        }
+      } catch (e) {}
+    }
+
+    function stopFlySound() {
+      try { sounds.flying.pause(); sounds.takeoff.pause(); } catch (e) {}
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('soundIcon').className = soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark text-red-500';
+      if (!soundEnabled) stopFlySound();
+    }
+
+    // CANVAS & SPRIBE PLANE ENGINE
+    const canvas = document.getElementById('aviatorCanvas');
+    const ctx = canvas.getContext('2d');
+    let elapsed = 0;
+    let propellerAngle = 0;
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth;
+      canvas.height = canvas.parentElement.clientHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function drawSpribePlane(x, y) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-0.15);
+      ctx.shadowColor = '#ef4444';
+      ctx.shadowBlur = 10;
+
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath();
+      ctx.moveTo(18, 0);
+      ctx.quadraticCurveTo(5, -8, -18, -3);
+      ctx.lineTo(-20, 2);
+      ctx.quadraticCurveTo(0, 8, 18, 0);
+      ctx.fill();
+
+      ctx.fillStyle = '#b91c1c';
+      ctx.beginPath();
+      ctx.moveTo(2, -2); ctx.lineTo(-6, -14); ctx.lineTo(4, -14); ctx.lineTo(6, -2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(-16, -1); ctx.lineTo(-22, -10); ctx.lineTo(-18, -10); ctx.lineTo(-12, -1);
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      propellerAngle += 0.4;
+      ctx.save();
+      ctx.translate(18, 0);
+      ctx.rotate(propellerAngle);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-1, -10, 2, 20);
+      ctx.restore();
+      ctx.restore();
+    }
+
+    function drawScene() {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(0, canvas.height);
+      for (let i = 0; i < 12; i++) {
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, Math.max(canvas.width, canvas.height) * 2, (i * Math.PI) / 6, ((i + 0.5) * Math.PI) / 6);
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(255, 255, 255, 0.015)' : 'transparent';
+        ctx.fill();
+      }
+      ctx.restore();
+
+      if (isFlying || elapsed > 0) {
+        let rawX = elapsed * 32;
+        let rawY = Math.pow(elapsed, 1.35) * 18;
+
+        let maxX = Math.max(canvas.width - 60, rawX + 40);
+        let maxY = Math.max(canvas.height - 60, rawY + 40);
+
+        let scaleX = (canvas.width - 40) / maxX;
+        let scaleY = (canvas.height - 40) / maxY;
+
+        let curX = 20 + rawX * scaleX;
+        let curY = (canvas.height - 20) - rawY * scaleY;
+
+        ctx.beginPath();
+        ctx.moveTo(20, canvas.height - 20);
+        for (let t = 0; t <= elapsed; t += 0.05) {
+          let px = 20 + (t * 32) * scaleX;
+          let py = (canvas.height - 20) - (Math.pow(t, 1.35) * 18) * scaleY;
+          ctx.lineTo(px, py);
+        }
+        ctx.lineTo(curX, curY);
+        ctx.lineTo(curX, canvas.height - 20);
+        ctx.closePath();
+
+        let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, 'rgba(220, 38, 38, 0.6)');
+        grad.addColorStop(1, 'rgba(220, 38, 38, 0.02)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(20, canvas.height - 20);
+        for (let t = 0; t <= elapsed; t += 0.05) {
+          let px = 20 + (t * 32) * scaleX;
+          let py = (canvas.height - 20) - (Math.pow(t, 1.35) * 18) * scaleY;
+          ctx.lineTo(px, py);
+        }
+        ctx.strokeStyle = '#e11d48';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        drawSpribePlane(curX, curY);
+      }
+    }
+
+    function animateEngine() {
+      if (isFlying) {
+        elapsed += 0.012;
+        drawScene();
+        requestAnimationFrame(animateEngine);
+      }
+    }
+
+    // ACTIONS INTEGRATED WITH API & LOCAL BACKEND
+    async function handleBetClick(panelId) {
+      if (betStates[panelId] === 'NONE') {
+        placeBet(panelId);
+      } else if (betStates[panelId] === 'ACTIVE') {
+        cashout(panelId);
+      }
+    }
+
+    async function placeBet(panelId) {
+      let amt = parseFloat(document.getElementById(`betAmount${panelId}`).value);
+      try {
+        const res = await fetch('http://localhost:3000/api/bet', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ amount: amt, panelId })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          if(data.newBalance) {
+            document.getElementById('walletBalance').innerText = data.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 });
+          }
+          betStates[panelId] = 'ACTIVE';
+          const btn = document.getElementById(`betBtn${panelId}`);
+          btn.className = 'w-1/2 h-[72px] btn-amber-glow text-black font-black rounded-2xl text-xs uppercase flex flex-col items-center justify-center';
+        } else {
+          alert('Bet Error: ' + data.error);
+        }
+      } catch(e) {
+        let balEl = document.getElementById('walletBalance');
+        let currentBal = parseFloat(balEl.innerText.replace(/,/g, ''));
+        if(currentBal >= amt) {
+          balEl.innerText = (currentBal - amt).toLocaleString('en-US', { minimumFractionDigits: 2 });
+          betStates[panelId] = 'ACTIVE';
+          const btn = document.getElementById(`betBtn${panelId}`);
+          btn.className = 'w-1/2 h-[72px] btn-amber-glow text-black font-black rounded-2xl text-xs uppercase flex flex-col items-center justify-center';
+        }
+      }
+    }
+
+    async function cashout(panelId) {
+      if (betStates[panelId] !== 'ACTIVE' || !isFlying) return;
+      let amt = parseFloat(document.getElementById(`betAmount${panelId}`).value);
+
+      try {
+        const res = await fetch('http://localhost:3000/api/cashout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ panelId })
+        });
+        const data = await res.json();
+        if(data.success && data.newBalance) {
+          document.getElementById('walletBalance').innerText = data.newBalance.toLocaleString('en-US', { minimumFractionDigits: 2 });
+        }
+      } catch(e) {
+        let winAmt = amt * currentMultiplier;
+        let balEl = document.getElementById('walletBalance');
+        let currentBal = parseFloat(balEl.innerText.replace(/,/g, '')) + winAmt;
+        balEl.innerText = currentBal.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      }
+
+      playSound('win');
+      myBetsHistory.unshift({ mult: currentMultiplier.toFixed(2), win: (amt * currentMultiplier).toFixed(2) });
+      betStates[panelId] = 'NONE';
+      resetBetBtnUI(panelId);
+      renderTableData();
+    }
+
+    function resetBetBtnUI(panelId) {
+      const btn = document.getElementById(`betBtn${panelId}`);
+      btn.innerHTML = '<span>BET</span>';
+      btn.className = 'w-1/2 h-[72px] btn-green-glow text-white font-black rounded-2xl text-lg uppercase transition flex flex-col items-center justify-center shadow-lg';
+    }
+
+    // MANUAL DEPOSIT SUBMIT FUNCTION
+    async function submitManualDeposit() {
+      const method = document.getElementById('depositMethod').value;
+      const amount = parseFloat(document.getElementById('depositAmt').value);
+      const trxId = document.getElementById('depositTrx').value.trim();
+
+      if (!amount || amount <= 0 || !trxId) {
+        alert('Please enter a valid amount and Transaction ID.');
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:3000/api/deposit/request', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ method, amount, trxId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Deposit Request Submitted! Pending admin approval.');
+          closeModal('depositModal');
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Server connection error. Make sure server.js is running.');
+      }
+    }
+
+    function switchBetTab(panelId, type) {
+      isAutoMode[panelId] = (type === 'auto');
+      document.getElementById(`modeBet${panelId}`).className = type === 'manual' ? 'text-white border-b-2 border-red-500 pb-0.5' : 'hover:text-white pb-0.5';
+      document.getElementById(`modeAuto${panelId}`).className = type === 'auto' ? 'text-white border-b-2 border-red-500 pb-0.5' : 'hover:text-white pb-0.5';
+      document.getElementById(`autoControls${panelId}`).style.display = type === 'auto' ? 'flex' : 'none';
+    }
+
+    function adjustBet(panelId, delta) {
+      let input = document.getElementById(`betAmount${panelId}`);
+      input.value = Math.max(50, parseFloat(input.value) + delta);
+    }
+    function setBet(panelId, val) { document.getElementById(`betAmount${panelId}`).value = val; }
+
+    function updateHistoryUI() {
+      const bar = document.getElementById('historyBar');
+      const grid = document.getElementById('fullHistoryGrid');
+      bar.innerHTML = ''; grid.innerHTML = '';
+
+      roundHistory.forEach(m => {
+        const val = typeof m === 'number' ? m : parseFloat(m);
+        const pill = document.createElement('span');
+        pill.className = `history-pill ${val >= 2.0 ? 'pill-purple' : 'pill-blue'}`;
+        pill.innerText = val.toFixed(2) + 'x';
+        bar.appendChild(pill);
+
+        const gridItem = document.createElement('div');
+        gridItem.className = `p-2 rounded-lg text-center font-bold text-xs ${val >= 2.0 ? 'bg-purple-900/40 text-purple-300 border border-purple-600/30' : 'bg-blue-900/40 text-blue-300 border border-blue-600/30'}`;
+        gridItem.innerText = val.toFixed(2) + 'x';
+        grid.appendChild(gridItem);
+      });
+    }
+
+    function switchMainTab(tab) {
+      currentMainTab = tab;
+      ['all', 'my', 'top'].forEach(t => {
+        document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`).className = (t === tab) ? 'text-white bg-slate-800 px-4 py-1.5 rounded-full' : 'hover:text-white px-4 py-1.5 rounded-full';
+      });
+      renderTableData();
+    }
+
+    function renderTableData() {
+      const container = document.getElementById('betsTableContainer');
+      container.innerHTML = '';
+
+      if (currentMainTab === 'all') {
+        const names = ['Ahmad_PK', 'Ali_Raza', 'Hamza_99', 'Zain_Pro', 'Usman_VIP'];
+        names.forEach(n => {
+          let row = document.createElement('div');
+          row.className = 'flex justify-between items-center px-3 py-1.5 rounded bg-slate-900/60 text-slate-300';
+          row.innerHTML = `<span class="font-bold">${n}</span><span>Rs. 200</span><span class="text-emerald-400 font-bold">1.85x</span><span class="text-emerald-400 font-bold">Rs. 370</span>`;
+          container.appendChild(row);
+        });
+      } else if (currentMainTab === 'my') {
+        myBetsHistory.forEach(b => {
+          let row = document.createElement('div');
+          row.className = 'flex justify-between items-center px-3 py-1.5 rounded bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 font-bold';
+          row.innerHTML = `<span>You</span><span class="text-slate-300">Cashed Out</span><span>${b.mult}x</span><span>Rs. ${b.win}</span>`;
+          container.appendChild(row);
+        });
+      } else {
+        let row = document.createElement('div');
+        row.className = 'flex justify-between items-center px-3 py-1.5 rounded bg-purple-950/40 border border-purple-500/30 text-purple-300 font-bold';
+        row.innerHTML = `<span>Shahid_King</span><span>Rs. 5,000</span><span>45.20x</span><span class="text-amber-400">Rs. 226,000</span>`;
+        container.appendChild(row);
+      }
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    window.onload = () => {
+      resizeCanvas();
+      updateHistoryUI();
+      renderTableData();
+      drawScene();
+    };
+  </script>
+</body>
+</html>
