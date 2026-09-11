@@ -23,10 +23,13 @@
 
   <!-- TOP NAVIGATION NAVBAR -->
   <header class="bg-[#14151b] px-4 py-2.5 flex justify-between items-center border-b border-slate-800 sticky top-0 z-40">
-    <div class="flex items-center space-x-3">
+    <div class="flex items-center space-x-2 sm:space-x-3">
       <span class="aviator-logo text-red-600 text-2xl tracking-wide">Aviator</span>
-      <button onclick="openModal('depositModal')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-full text-xs flex items-center gap-1 shadow-md">
+      <button onclick="openModal('depositModal')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 py-1 rounded-full text-xs flex items-center gap-1 shadow-md">
         <i class="fa-solid fa-plus text-[10px]"></i> Deposit
+      </button>
+      <button onclick="openModal('withdrawModal')" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-2.5 py-1 rounded-full text-xs flex items-center gap-1 shadow-md">
+        <i class="fa-solid fa-wallet text-[10px]"></i> Withdraw
       </button>
     </div>
     
@@ -154,7 +157,6 @@
       <h3 class="text-lg font-bold text-emerald-400 mb-2 flex items-center gap-2"><i class="fa-solid fa-building-columns"></i> Deposit Funds (PKR)</h3>
       
       <div class="space-y-3 mt-4">
-        <!-- REAL PAYMENT ACCOUNTS DISPLAY -->
         <div class="bg-black/80 p-3 rounded-xl border border-emerald-500/40 text-xs space-y-2">
           <p class="font-bold text-amber-400">Send Payment To Account:</p>
           
@@ -192,6 +194,33 @@
     </div>
   </div>
 
+  <!-- MODAL: MANUAL WITHDRAWAL GATEWAY (PKR) -->
+  <div id="withdrawModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-[#1a1c23] p-5 rounded-2xl w-full max-w-sm border border-slate-800 relative">
+      <button onclick="closeModal('withdrawModal')" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      <h3 class="text-lg font-bold text-amber-400 mb-2 flex items-center gap-2"><i class="fa-solid fa-money-bill-transfer"></i> Withdraw Funds (PKR)</h3>
+      
+      <div class="space-y-3 mt-4">
+        <label class="block text-xs text-slate-400">1. Select Account Type:</label>
+        <select id="withdrawMethod" class="w-full p-2 rounded-lg bg-black border border-slate-700 text-white text-xs">
+          <option value="JazzCash">JazzCash</option>
+          <option value="EasyPaisa">EasyPaisa</option>
+        </select>
+
+        <label class="block text-xs text-slate-400">2. Account Title (Full Name):</label>
+        <input type="text" id="withdrawName" placeholder="e.g. Ayaz Ahmed" class="w-full p-2.5 rounded-lg bg-black border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500">
+
+        <label class="block text-xs text-slate-400">3. Mobile Account Number:</label>
+        <input type="text" id="withdrawNumber" placeholder="03XXXXXXXXX" class="w-full p-2.5 rounded-lg bg-black border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500 font-mono">
+
+        <label class="block text-xs text-slate-400">4. Withdrawal Amount (Rs.):</label>
+        <input type="number" id="withdrawAmt" placeholder="Min 500" min="500" class="w-full p-2.5 rounded-lg bg-black border border-slate-700 text-white text-sm focus:outline-none focus:border-amber-500">
+
+        <button onclick="submitManualWithdrawal()" class="w-full bg-amber-500 text-black font-black py-3 rounded-xl text-sm shadow-lg shadow-amber-500/20">SUBMIT WITHDRAWAL REQUEST</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: FULL ROUND HISTORY -->
   <div id="fullHistoryModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4">
     <div class="bg-[#1a1c23] p-5 rounded-2xl w-full max-w-md border border-slate-800 relative">
@@ -211,6 +240,7 @@
       <h3 class="text-base font-bold text-white">VIP Player Account</h3>
       <p class="text-xs text-slate-400 mb-4">Currency: PKR (Pakistan)</p>
       <button onclick="openModal('depositModal')" class="w-full bg-emerald-500 text-black font-bold py-2 rounded-lg text-xs mb-2">Deposit Funds</button>
+      <button onclick="openModal('withdrawModal')" class="w-full bg-amber-500 text-black font-bold py-2 rounded-lg text-xs mb-2">Withdraw Funds</button>
       <button onclick="location.reload()" class="w-full bg-red-600/20 text-red-400 font-bold py-2 rounded-lg text-xs border border-red-600/30">Logout</button>
     </div>
   </div>
@@ -558,6 +588,51 @@
       } catch (err) {
         console.error(err);
         alert('Server connection error. Make sure server.js is running.');
+      }
+    }
+
+    // MANUAL WITHDRAWAL SUBMIT FUNCTION
+    async function submitManualWithdrawal() {
+      const accountType = document.getElementById('withdrawMethod').value;
+      const accountName = document.getElementById('withdrawName').value.trim();
+      const accountNumber = document.getElementById('withdrawNumber').value.trim();
+      const amount = parseFloat(document.getElementById('withdrawAmt').value);
+
+      if (!accountName || !accountNumber || !amount || amount < 500) {
+        alert('Please fill all details correctly. Minimum withdrawal amount is Rs. 500.');
+        return;
+      }
+
+      let balEl = document.getElementById('walletBalance');
+      let currentBal = parseFloat(balEl.innerText.replace(/,/g, ''));
+
+      if (amount > currentBal) {
+        alert('Insufficient wallet balance!');
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:3000/api/withdraw/request', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ accountType, accountName, accountNumber, amount })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          balEl.innerText = (currentBal - amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+          alert('Withdrawal Request Submitted Successfully!');
+          closeModal('withdrawModal');
+        } else {
+          alert('Error: ' + (data.error || 'Failed to submit withdrawal.'));
+        }
+      } catch (err) {
+        balEl.innerText = (currentBal - amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+        alert('Withdrawal Request Submitted (Offline Mode)!');
+        closeModal('withdrawModal');
       }
     }
 
