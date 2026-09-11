@@ -87,7 +87,7 @@ app.post('/api/deposit/request', async (req, res) => {
   }
 });
 
-// ADMIN APPROVAL ROUTE
+// ADMIN APPROVAL ROUTE - DEPOSIT
 app.post('/api/admin/approve-deposit', async (req, res) => {
   try {
     const { depositId } = req.body;
@@ -102,6 +102,69 @@ app.post('/api/admin/approve-deposit', async (req, res) => {
     await pool.query('UPDATE deposits SET status = $1 WHERE id = $2', ['APPROVED', depositId]);
 
     res.json({ success: true, message: 'Deposit approved and balance added!' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// MANUAL WITHDRAWAL ROUTES
+app.post('/api/withdraw/request', async (req, res) => {
+  try {
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const { accountType, accountName, accountNumber, amount } = req.body;
+
+    const reqAmt = parseFloat(amount);
+    if (!reqAmt || reqAmt < 500) {
+      return res.status(400).json({ success: false, error: 'Minimum withdrawal amount is Rs. 500' });
+    }
+
+    const walletQuery = await pool.query('SELECT balance FROM wallets WHERE user_id = $1', [decoded.userId]);
+    if (walletQuery.rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'Wallet not found' });
+    }
+
+    const currentBalance = parseFloat(walletQuery.rows[0].balance);
+    if (currentBalance < reqAmt) {
+      return res.status(400).json({ success: false, error: 'Insufficient wallet balance' });
+    }
+
+    // Balance deduct for request lock
+    const newBalance = currentBalance - reqAmt;
+    await pool.query('UPDATE wallets SET balance = $1 WHERE user_id = $2', [newBalance, decoded.userId]);
+
+    await pool.query(
+      'INSERT INTO withdrawals (user_id, account_type, account_name, account_number, amount, status) VALUES ($1, $2, $3, $4, $5, $6)',
+      [decoded.userId, accountType, accountName, accountNumber, reqAmt, 'PENDING']
+    );
+
+    res.json({ success: true, message: 'Withdrawal request submitted successfully', newBalance });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ADMIN APPROVAL ROUTE - WITHDRAWAL
+app.post('/api/admin/approve-withdraw', async (req, res) => {
+  try {
+    const { withdrawId, status } = req.body; // status: 'APPROVED' or 'REJECTED'
+    const withQuery = await pool.query('SELECT * FROM withdrawals WHERE id = $1 AND status = $2', [withdrawId, 'PENDING']);
+
+    if (withQuery.rows.length === 0) {
+      return res.status(400).json({ success: false, error: 'Withdrawal request not found or already processed' });
+    }
+
+    const withdrawReq = withQuery.rows[0];
+
+    if (status === 'REJECTED') {
+      // Refund balance back to user if rejected by admin
+      await pool.query('UPDATE wallets SET balance = balance + $1 WHERE user_id = $2', [withdrawReq.amount, withdrawReq.user_id]);
+      await pool.query('UPDATE withdrawals SET status = $1 WHERE id = $2', ['REJECTED', withdrawId]);
+      return res.json({ success: true, message: 'Withdrawal rejected and amount refunded to user wallet.' });
+    }
+
+    await pool.query('UPDATE withdrawals SET status = $1 WHERE id = $2', ['APPROVED', withdrawId]);
+    res.json({ success: true, message: 'Withdrawal marked as approved!' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
